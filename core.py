@@ -9,6 +9,27 @@ class Variable:
         """
         self.data = data
         self.grad = None  #梯度初始化为None
+        self.creator = None  #记录创建这个Variable的函数类实例
+    def set_creator(self, function):
+        """
+        设置创建这个Variable的函数类实例
+        :param
+          function: Function类型的函数类实例
+        """
+        self.creator = function
+    def backward(self):
+        """反向传播函数
+        计算梯度并更新Variable的grad属性
+        """
+        if self.grad is None:  #如果梯度为None，初始化为1
+            self.grad = numpy.ones_like(self.data)
+        #如果有创建者，递归调用前一个Variable的backward方法
+        f = self.creator  #获取创建这个Variable的函数类实例
+        if f is not None:
+            x = f.input  #获取输入的Variable
+            x.grad = f.backward(self.grad)  #调用函数类实例的backward方法计算梯度
+            x.backward()  #递归调用前一个Variable的backward方法，直到没有创建者为止
+        
 
 
 # import numpy as np
@@ -30,7 +51,12 @@ class Function:
         x=input.data
         y=self.forward(x) #实际的计算
         output = Variable(y)#前向传播的结果封装成Variable类型
+        output.set_creator(self) #设置创建这个Variable的函数类实例,这样会在前向传播的过程中就建立链接Define-by-Run
+        #将输入的Variable变量保存到函数类实例中
         self.input = input #保存输入的Variable变量
+        #将输出的Variable变量保存到函数类实例中
+        self.output = output #保存输出的Variable变量
+        #返回输出的Variable变量
         return output 
     def forward(self,x: numpy.ndarray) -> numpy.ndarray:
         """
@@ -117,6 +143,14 @@ def numerical_diff(f: Function, x: numpy.ndarray, eps: float = 1e-4) -> numpy.nd
 # grad = numerical_diff(f,x)
 # print(grad)
 
-
+A=SquareFunction()
+B=ExpFunction()
+C=SquareFunction()
+x=Variable(numpy.array(0.5))
+a=A(x)
+b=B(a)
+c=C(b)
+c.backward()  #执行反向传播
+print(x.grad)  #输出梯度
 
 
